@@ -140,10 +140,9 @@ impl Lexer {
     }
 
     fn next_char(&self) -> char {
-        if self.position >= self.length {
-            '\0'
-        } else {
-            self.input[self.position]
+        match self.input.get(self.position) {
+            Some(v) => *v,
+            None => '\0'
         }
     }
 

@@ -2,7 +2,7 @@ use super::types::{AdditionOperations, MultiplicationOperations, ProgramTypes, R
 
 #[derive(Debug, Clone)]
 pub enum MainOperation {
-    CreateVariable(Vec<(u64, ProgramTypes)>),
+    CreateVariable(Vec<(Vec<u64>, ProgramTypes)>),
     Operator(Operator)
 }
 
