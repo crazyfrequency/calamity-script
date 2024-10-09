@@ -1,9 +1,9 @@
 use super::types::{AdditionOperations, MultiplicationOperations, ProgramTypes, RelationOperations};
 
 #[derive(Debug, Clone)]
-pub enum MainOperations {
-    CreateVariable(Vec<u64>, ProgramTypes),
-    Operator(Vec<Operator>)
+pub enum MainOperation {
+    CreateVariable(Vec<(u64, ProgramTypes)>),
+    Operator(Operator)
 }
 
 #[derive(Debug, Clone)]
@@ -19,20 +19,20 @@ pub enum Operator {
 
 #[derive(Debug, Clone)]
 pub struct Expression {
-    operands: Vec<Operand>,
-    operations: Vec<RelationOperations>
+    pub operands: Vec<Operand>,
+    pub operations: Vec<RelationOperations>
 }
 
 #[derive(Debug, Clone)]
 pub struct Operand {
-    terms: Vec<Operand>,
-    operation: Vec<AdditionOperations>
+    pub terms: Vec<Operand>,
+    pub operation: Vec<AdditionOperations>
 }
 
 #[derive(Debug, Clone)]
 pub struct Term {
-    multiplier: Vec<Multiplier>,
-    operation: Vec<MultiplicationOperations>
+    pub multiplier: Vec<Multiplier>,
+    pub operation: Vec<MultiplicationOperations>
 }
 
 #[derive(Debug, Clone)]

@@ -2,12 +2,13 @@ use std::{collections::HashMap, fs};
 
 use crate::utils::{lexer::Lexer, structs::tokens::TokenGroup};
 
-use super::structs::types::LexerDigitalData;
+use super::{structs::types::LexerDigitalData, syntax::Syntax};
 
 #[derive(Debug, Clone)]
 pub struct Parser {
     path: String,
     lexer: Lexer,
+    syntax: Syntax,
 
     pub tokens: Vec<TokenGroup>,
     last_ident: u64,
@@ -21,12 +22,14 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(path: impl Into<String>) -> Self {
-        let path = path.into();
+        let path: String = path.into();
         let buf = fs::read_to_string(path.clone()).expect("Не удалось прочитать файл");
         let lexer = Lexer::new(buf.chars().collect::<Vec<char>>(), path.clone());
+        let syntax = Syntax::new(path.clone());
         Self {
             path,
             lexer,
+            syntax,
             tokens: Vec::new(),
             last_ident: 0,
             last_var: 0,
@@ -121,9 +124,8 @@ impl Parser {
     }
 
     pub fn run_syntax(&mut self) -> Result<(), ()> {
-        loop {
-            
-        }
+        let res = self.syntax.run_process(self.tokens.clone(), self.vars.clone());
+        
         Ok(())
     }
 
