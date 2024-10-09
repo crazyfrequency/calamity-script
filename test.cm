@@ -1,8 +1,8 @@
 {
     var a, b: integer; c: real; d: boolean;;
-    var;  % Зачем существуют пустые переменные %
+    var;  % существуют пустые переменные %
     let a = 1Dh;
-    c = .3E-4;
+    c = 3E2;
     c = c / a;
     input(a b);
     d = a < b;

@@ -63,6 +63,7 @@ pub enum DelimitersGroup {
     Asterisk,          // "*"
     Slash,             // "/"
     Not,               // "!"
+    // Space,             // " "
 }
 
 impl Display for TokenGroup {

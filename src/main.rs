@@ -50,7 +50,7 @@ fn main() {
     if let Err(_) = res { return }
     let tokens = parser_structure.tokens.clone();
     for i in tokens {
-        print!("{} ", i);
+        print!("{:?} ", i);
     }
     println!();
     println!("{:?}", parser_structure.ident_map);
