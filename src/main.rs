@@ -39,8 +39,9 @@ fn main() {
         }
     };
     if path.is_empty() {
-        println!("No file specified");
-        return;
+        // println!("No file specified");
+        // return;
+        path = String::from("test.cm");
     }
     if error {
         return;
@@ -50,7 +51,7 @@ fn main() {
     if let Err(_) = res { return }
     let tokens = parser_structure.tokens.clone();
     for i in tokens {
-        print!("{:?} ", i);
+        print!("{} ", i);
     }
     println!();
     println!("{:?}", parser_structure.ident_map);
@@ -61,5 +62,7 @@ fn main() {
     let res = parser_structure.run_syntax();
     if let Err(_) = res { return }
     if syntax { return }
+    let res = parser_structure.run_semantic();
+    if let Err(_) = res { return }
     if sem { return }
 }

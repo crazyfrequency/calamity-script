@@ -9,7 +9,7 @@
     a = 1;
     output(a b c d);
     {
-        let a = 1;
+        let a = 0-1;
         c = 3E4;
         let c = .3E-1-1;
         c = c / a;
@@ -17,8 +17,8 @@
         d = a < b;
         a = 1;
         output(a b c d);
-        for (a != 0 != 2;1 ; !1 >= 5 >= 1 < ( 4 > 2 )) {
-            let a = a + 3;
+        for (a != 0 != 2;1 ; !1>=5>=1 < ( 4 > 2 )) {
+            let a = a + 3
         }
-    }
+    };
 }

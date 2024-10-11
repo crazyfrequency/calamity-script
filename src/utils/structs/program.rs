@@ -14,7 +14,7 @@ pub enum Operator {
     For(Expression, Expression, Expression, Box<Self>),
     While(Expression, Box<Self>),
     Input(Vec<u64>),
-    Output(Vec<u64>)
+    Output(Vec<Expression>)
 }
 
 #[derive(Debug, Clone)]
@@ -25,14 +25,14 @@ pub struct Expression {
 
 #[derive(Debug, Clone)]
 pub struct Operand {
-    pub terms: Vec<Operand>,
-    pub operation: Vec<AdditionOperations>
+    pub terms: Vec<Term>,
+    pub operations: Vec<AdditionOperations>
 }
 
 #[derive(Debug, Clone)]
 pub struct Term {
-    pub multiplier: Vec<Multiplier>,
-    pub operation: Vec<MultiplicationOperations>
+    pub multipliers: Vec<Multiplier>,
+    pub operations: Vec<MultiplicationOperations>
 }
 
 #[derive(Debug, Clone)]

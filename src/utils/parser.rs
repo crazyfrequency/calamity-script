@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs};
 
 use crate::utils::{lexer::Lexer, structs::tokens::TokenGroup};
 
-use super::{structs::types::LexerDigitalData, syntax::Syntax};
+use super::{structs::{program::MainOperation, types::LexerDigitalData}, syntax::Syntax};
 
 #[derive(Debug, Clone)]
 pub struct Parser {
@@ -13,6 +13,8 @@ pub struct Parser {
     pub tokens: Vec<TokenGroup>,
     last_ident: u64,
     last_var: u64,
+
+    pub program: Vec<MainOperation>,
 
     pub ident_map: HashMap<String, u64>,
     pub var_map: HashMap<String, u64>,
@@ -25,7 +27,7 @@ impl Parser {
         let path: String = path.into();
         let buf = fs::read_to_string(path.clone()).expect("Не удалось прочитать файл");
         let lexer = Lexer::new(buf.chars().collect::<Vec<char>>(), path.clone());
-        let syntax = Syntax::new(path.clone());
+        let syntax = Syntax::new();
         Self {
             path,
             lexer,
@@ -33,6 +35,7 @@ impl Parser {
             tokens: Vec::new(),
             last_ident: 0,
             last_var: 0,
+            program: Vec::default(),
             ident_map: HashMap::new(),
             var_map: HashMap::new(),
             vars: HashMap::new(),
@@ -83,6 +86,7 @@ impl Parser {
 
         for var in self.var_map.clone() {
             let last_char = var.0.chars().last().unwrap();
+            println!("{:?}", var);
             match last_char {
                 'B'|'b' => {
                     let digit = &var.0[..var.0.len()-1];
@@ -124,9 +128,35 @@ impl Parser {
     }
 
     pub fn run_syntax(&mut self) -> Result<(), ()> {
-        let res = self.syntax.run_process(self.tokens.clone(), self.vars.clone());
+        let res = self.syntax.run_process(
+            self.tokens.clone(),
+            self.vars.clone()
+        );
         
-        Ok(())
+        use crate::utils::syntax::error::SyntaxError;
+        match res {
+            Ok(data) => {
+                self.program = data;
+                println!("{:#?}", self.program);
+                Ok(())
+            },
+            Err(e) => match e {
+                SyntaxError::Missing(token, text) =>
+                    return Err(println!(
+                        "Синтаксический анализатор сообщает: {}, а встречена лексема: {:?}",
+                        text, token
+                    )),
+                SyntaxError::Error(text) => 
+                    return Err(println!(
+                        "Синтаксический анализатор сообщает: {}",
+                        text
+                    ))
+            }
+        }
+    }
+
+    pub fn run_semantic(&mut self) -> Result<(), ()> {
+        todo!()
     }
 
 }

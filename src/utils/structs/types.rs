@@ -1,14 +1,33 @@
+use std::ops::Shr;
+
 #[derive(Debug, Clone)]
 pub enum LexerDigitalData {
     Integer(i64),
     Float(f64)
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ProgramTypes {
-    Integer(i64),
-    Float(f64),
-    Boolean(bool)
+    Integer(Option<i64>),
+    Float(Option<f64>),
+    Boolean(Option<bool>)
+}
+
+impl Shr for ProgramTypes {
+    type Output = bool;
+
+    fn shr(self, rhs: Self) -> Self::Output {
+        match self {
+            ProgramTypes::Boolean(_) => match rhs {
+                ProgramTypes::Boolean(_) => true,
+                _ => false
+            },
+            _ => match rhs {
+                ProgramTypes::Boolean(_) => false,
+                _ => true
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

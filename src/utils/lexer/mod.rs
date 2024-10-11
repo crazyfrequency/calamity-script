@@ -270,6 +270,8 @@ impl Lexer {
                             )
                         )
                     }
+                } else {
+                    break;
                 },
                 _ => if digit_type.clone() >> DigitType::Digital {
                     break;
