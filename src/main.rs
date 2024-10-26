@@ -44,6 +44,7 @@ fn main() {
         path = String::from("test.cm");
     }
     if error {
+        println!("Неверные аргументы, доступные аргументы: -l, -st, -sem");
         return;
     }
     let mut parser_structure = Parser::new(path);
@@ -51,7 +52,7 @@ fn main() {
     if let Err(_) = res { return }
     let tokens = parser_structure.tokens.clone();
     for i in tokens {
-        print!("{} ", i);
+        print!("{} ", i.token);
     }
     println!();
     println!("{:?}", parser_structure.ident_map);

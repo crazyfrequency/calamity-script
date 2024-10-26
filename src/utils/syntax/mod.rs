@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::utils::structs::tokens::KeywordsGroup;
 
-use super::structs::{program::{Expression, MainOperation, Multiplier, Operand, Operator, Term}, tokens::{DelimitersGroup, TokenGroup}, types::{AdditionOperations, LexerDigitalData, MultiplicationOperations, ProgramTypes, RelationOperations}};
+use super::structs::{program::{Expression, MainOperation, Multiplier, Operand, Operator, Term}, tokens::{DelimitersGroup, Token, TokenGroup}, types::{AdditionOperations, LexerDigitalData, MultiplicationOperations, ProgramTypes, RelationOperations}};
 
 pub mod error;
 
@@ -10,17 +10,17 @@ use error::{SyntaxResult, SyntaxError};
 
 #[derive(Debug, Clone)]
 pub struct Syntax {
-    current_token: TokenGroup,
-    position: usize,
+    current_token: Token,
+    pub position: usize,
 
-    tokens: Vec<TokenGroup>,
+    tokens: Vec<Token>,
     vars: HashMap<u64, LexerDigitalData>
 }
 
 impl Syntax {
     pub fn new() -> Self {
         Self {
-            current_token: TokenGroup::Eof,
+            current_token: Token::eof(),
             position: 0,
             tokens: Vec::default(),
             vars: HashMap::default()
@@ -29,7 +29,7 @@ impl Syntax {
 
     pub fn run_process(
         &mut self,
-        tokens: Vec<TokenGroup>,
+        tokens: Vec<Token>,
         vars: HashMap<u64, LexerDigitalData>
     ) -> SyntaxResult<Vec<MainOperation>> {
         self.tokens = tokens;
@@ -38,34 +38,34 @@ impl Syntax {
         let mut main = Vec::new();
         self.read_token();
 
-        match self.current_token {
+        match self.current_token.token {
             TokenGroup::Delimiters(DelimitersGroup::LeftCurlyBracket) => {
                 self.read_token();
                 while
-                    self.current_token != TokenGroup::Delimiters(DelimitersGroup::RightCurlyBracket)
+                    self.current_token.token != TokenGroup::Delimiters(DelimitersGroup::RightCurlyBracket)
                     &&
-                    self.current_token != TokenGroup::Eof
+                    self.current_token.token != TokenGroup::Eof
                 {
                     let res = self.get_main();
                     if let Err(e) = res {
                         return Err(e);
                     }
                     main.push(res.unwrap());
-                    match self.current_token {
+                    match self.current_token.token {
                         TokenGroup::Delimiters(DelimitersGroup::Semicolon) => self.read_token(),
                         _ => return Err(SyntaxError::Missing(
                             self.current_token.clone(),
-                            "Ожидалось '}' или ';'".to_string()
+                            "Ожидалось ';'".to_string()
                         ))
                     }
                 }
-                if self.current_token == TokenGroup::Eof {
+                if self.current_token.token == TokenGroup::Eof {
                     return Err(SyntaxError::Missing(
                         self.current_token.clone(),
                         "Ожидалось '}'".to_string()
                     ));
                 } else {
-                    match self.current_token {
+                    match self.current_token.token {
                         TokenGroup::Delimiters(DelimitersGroup::RightCurlyBracket) =>
                             self.read_token(),
                         _ => return Err(SyntaxError::Missing(
@@ -73,7 +73,7 @@ impl Syntax {
                             "Ожидалось '}'".to_string()
                         ))
                     }
-                    if self.current_token != TokenGroup::Eof {
+                    if self.current_token.token != TokenGroup::Eof {
                         return Err(SyntaxError::Missing(self.current_token.clone(), "Ожидался конец программы".to_string()));
                     }
                 }
@@ -87,7 +87,7 @@ impl Syntax {
     }
 
     fn get_main(&mut self) -> SyntaxResult<MainOperation> {
-        match self.current_token {
+        match self.current_token.token {
             TokenGroup::Keywords(KeywordsGroup::Var) => match self.get_var() {
                 Ok(vars) => return Ok(MainOperation::CreateVariable(vars)),
                 Err(e) => return Err(e)
@@ -103,7 +103,7 @@ impl Syntax {
         let mut vars = Vec::new();
         self.read_token();
         
-        if self.current_token == TokenGroup::Delimiters(DelimitersGroup::Semicolon) {
+        if self.current_token.token == TokenGroup::Delimiters(DelimitersGroup::Semicolon) {
             return Ok(Vec::default());
         }
 
@@ -111,17 +111,17 @@ impl Syntax {
         let mut comma = false;
 
         loop {
-            match self.current_token {
+            match self.current_token.token {
                 TokenGroup::Identifier(v) => {
                     temp_vars.push(v);
                     self.read_token();
-                    match self.current_token {
+                    match self.current_token.token {
                         TokenGroup::Delimiters(DelimitersGroup::Comma) =>
                             comma = true,
                         TokenGroup::Delimiters(DelimitersGroup::Colon) => {
                             comma = false;
                             self.read_token();
-                            match self.current_token {
+                            match self.current_token.token {
                                 TokenGroup::Keywords(KeywordsGroup::Integer) =>
                                     vars.push((temp_vars.clone(), ProgramTypes::Integer(None))),
                                 TokenGroup::Keywords(KeywordsGroup::Real) =>
@@ -135,7 +135,7 @@ impl Syntax {
                             }
                             temp_vars.clear();
                             self.read_token();
-                            match self.current_token {
+                            match self.current_token.token {
                                 TokenGroup::Delimiters(DelimitersGroup::Semicolon) => (),
                                 _ => return Err(SyntaxError::Missing(
                                     self.current_token.clone(),
@@ -163,26 +163,26 @@ impl Syntax {
     }
 
     fn get_operator(&mut self) -> SyntaxResult<Operator> {
-        match self.current_token {
+        match self.current_token.token {
             TokenGroup::Delimiters(DelimitersGroup::LeftCurlyBracket) => {
                 self.read_token();
                 let mut operators = Vec::new();
                 while
-                    self.current_token != TokenGroup::Delimiters(DelimitersGroup::RightCurlyBracket)
+                    self.current_token.token != TokenGroup::Delimiters(DelimitersGroup::RightCurlyBracket)
                     &&
-                    self.current_token != TokenGroup::Eof
+                    self.current_token.token != TokenGroup::Eof
                 {
                     match self.get_operator() {
                         Ok(v) => operators.push(v),
                         Err(e) => return Err(e)
                     }
-                    if self.current_token == TokenGroup::Delimiters(DelimitersGroup::Semicolon) {
-                        match self.next_token() {
+                    if self.current_token.token == TokenGroup::Delimiters(DelimitersGroup::Semicolon) {
+                        match self.next_token().token {
                             TokenGroup::Delimiters(DelimitersGroup::RightCurlyBracket) =>
                                 return Err(SyntaxError::Error("Ожидался оператор".to_string())),
                             _ => self.read_token(),
                         }
-                    } else if self.current_token != TokenGroup::Delimiters(DelimitersGroup::RightCurlyBracket) {
+                    } else if self.current_token.token != TokenGroup::Delimiters(DelimitersGroup::RightCurlyBracket) {
                         return Err(SyntaxError::Missing(
                             self.current_token.clone(),
                             "Ожидалось '}'".to_string()
@@ -194,10 +194,10 @@ impl Syntax {
             },
             TokenGroup::Keywords(KeywordsGroup::Let) => {
                 self.read_token();
-                match self.current_token {
+                match self.current_token.token {
                     TokenGroup::Identifier(id) => {
                         self.read_token();
-                        match self.current_token {
+                        match self.current_token.token {
                             TokenGroup::Delimiters(DelimitersGroup::Equal) => {
                                 self.read_token();
                                 match self.get_expression() {
@@ -219,7 +219,7 @@ impl Syntax {
             },
             TokenGroup::Identifier(id) => {
                 self.read_token();
-                match self.current_token {
+                match self.current_token.token {
                     TokenGroup::Delimiters(DelimitersGroup::Equal) => {
                         self.read_token();
                         match self.get_expression() {
@@ -235,47 +235,49 @@ impl Syntax {
             },
             TokenGroup::Keywords(KeywordsGroup::If) => {
                 self.read_token();
-                match self.get_expression() {
+                let expression = match self.get_expression() {
                     Err(e) => return Err(e),
-                    Ok(expression) => match self.current_token {
-                        TokenGroup::Keywords(KeywordsGroup::Then) => {
-                            self.read_token();
-                            match self.get_operator() {
-                                Ok(operator1) => {
-                                    self.read_token();
-                                    match self.current_token {
-                                        TokenGroup::Keywords(KeywordsGroup::Else) => {
-                                            self.read_token();
-                                            match self.get_operator() {
-                                                Ok(operator2) =>
-                                                    Ok(Operator::If(
-                                                        expression,
-                                                        Box::new(operator1),
-                                                        Some(Box::new(operator2))
-                                                    )),
-                                                Err(e) => Err(e)
-                                            }
-                                        },
-                                        _ => Ok(Operator::If(
-                                            expression,
-                                            Box::new(operator1),
-                                            None
-                                        ))
-                                    }
-                                },
-                                Err(e) => Err(e),
-                            }
-                        },
-                        _ => return Err(SyntaxError::Missing(
-                            self.current_token.clone(),
-                            "Ожидалось 'then'".to_string()
-                        ))
-                    }
+                    Ok(expression) => expression
+                };
+                match self.current_token.token {
+                    TokenGroup::Keywords(KeywordsGroup::Then) => (),
+                    _ => return Err(SyntaxError::Missing(
+                        self.current_token.clone(),
+                        "Ожидалось 'then'".to_string()
+                    ))
                 }
+                self.read_token();
+                let operator1 = match self.get_operator() {
+                    Ok(operator) => operator,
+                    Err(e) => return Err(e),
+                };
+                let operator2 = match self.current_token.token {
+                    TokenGroup::Keywords(KeywordsGroup::Else) => {
+                        self.read_token();
+                        match self.get_operator() {
+                            Ok(operator2) => Some(Box::new(operator2)),
+                            Err(e) => return Err(e)
+                        }
+                    },
+                    _ => None
+                };
+                match self.current_token.token {
+                    TokenGroup::Keywords(KeywordsGroup::EndElse) => (),
+                    _ => return Err(SyntaxError::Missing(
+                        self.current_token.clone(),
+                        "Ожидалось 'end_else'".to_string()
+                    ))
+                }
+                self.read_token();
+                Ok(Operator::If(
+                    expression,
+                    Box::new(operator1),
+                    operator2
+                ))
             }
             TokenGroup::Keywords(KeywordsGroup::For) => {
                 self.read_token();
-                match self.current_token {
+                match self.current_token.token {
                     TokenGroup::Delimiters(DelimitersGroup::LeftParenthesis) => self.read_token(),
                     _ => return Err(SyntaxError::Missing(
                         self.current_token.clone(),
@@ -289,7 +291,7 @@ impl Syntax {
                     Err(e) => return Err(e)
                 };
                 for _ in 1..3 {
-                    match self.current_token {
+                    match self.current_token.token {
                         TokenGroup::Delimiters(DelimitersGroup::Semicolon) => self.read_token(),
                         _ => return Err(SyntaxError::Missing(
                             self.current_token.clone(),
@@ -302,7 +304,7 @@ impl Syntax {
                     };
                 }
                 
-                match self.current_token {
+                match self.current_token.token {
                     TokenGroup::Delimiters(DelimitersGroup::RightParenthesis) =>
                         self.read_token(),
                     _ => return Err(SyntaxError::Missing(
@@ -323,21 +325,12 @@ impl Syntax {
             },
             TokenGroup::Keywords(KeywordsGroup::Do) => {
                 self.read_token();
-                match self.current_token {
+                match self.current_token.token {
                     TokenGroup::Keywords(KeywordsGroup::While) =>
                         self.read_token(),
                     _ => return Err(SyntaxError::Missing(
                         self.current_token.clone(),
                         "Ожидалось ключевое слово 'while'".to_string()
-                    ))
-                };
-                
-                match self.current_token {
-                    TokenGroup::Delimiters(DelimitersGroup::LeftParenthesis) =>
-                        self.read_token(),
-                    _ => return Err(SyntaxError::Missing(
-                        self.current_token.clone(),
-                        "Ожидалась '('".to_string()
                     ))
                 };
 
@@ -346,26 +339,28 @@ impl Syntax {
                     Err(e) => return Err(e)
                 };
 
-                match self.current_token {
-                    TokenGroup::Delimiters(DelimitersGroup::RightParenthesis) =>
-                        self.read_token(),
-                    _ => return Err(SyntaxError::Missing(
-                        self.current_token.clone(),
-                        "Ожидалась ')'".to_string()
-                    ))
+                let operator = match self.get_operator() {
+                    Ok(operator) => operator,
+                    Err(e) => return Err(e)
                 };
-
-                match self.get_operator() {
-                    Ok(operator) => Ok(Operator::While(
-                        expressions,
-                        Box::new(operator)
-                    )),
-                    Err(e) => Err(e)
+                
+                match self.current_token.token {
+                    TokenGroup::Keywords(KeywordsGroup::Loop) => {
+                        self.read_token();
+                        Ok(Operator::While(
+                            expressions,
+                            Box::new(operator)
+                        ))
+                    },
+                    _ => Err(SyntaxError::Missing(
+                        self.current_token.clone(),
+                        "Ожидалась 'loop'".to_string()
+                    ))
                 }
             },
             TokenGroup::Keywords(KeywordsGroup::Input) => {
                 self.read_token();
-                match self.current_token {
+                match self.current_token.token {
                     TokenGroup::Delimiters(DelimitersGroup::LeftParenthesis) =>
                         self.read_token(),
                     _ => return Err(SyntaxError::Missing(
@@ -376,7 +371,7 @@ impl Syntax {
                 let mut identifiers = Vec::new();
 
                 loop {
-                    match self.current_token.clone() {
+                    match self.current_token.token.clone() {
                         TokenGroup::Delimiters(DelimitersGroup::RightParenthesis) => break,
                         TokenGroup::Identifier(id) => {
                             self.read_token();
@@ -401,7 +396,7 @@ impl Syntax {
             },
             TokenGroup::Keywords(KeywordsGroup::Output) => {
                 self.read_token();
-                match self.current_token {
+                match self.current_token.token {
                     TokenGroup::Delimiters(DelimitersGroup::LeftParenthesis) =>
                         self.read_token(),
                     _ => return Err(SyntaxError::Missing(
@@ -413,7 +408,7 @@ impl Syntax {
                 let mut expressions = Vec::new();
 
                 loop {
-                    match self.current_token {
+                    match self.current_token.token {
                         TokenGroup::Delimiters(DelimitersGroup::RightParenthesis) =>
                             break,
                         _ => match self.get_expression() {
@@ -447,7 +442,7 @@ impl Syntax {
         }
 
         loop {
-            match &self.current_token {
+            match &self.current_token.token {
                 TokenGroup::Delimiters(delimiter) => match delimiter {
                     DelimitersGroup::NotEqual =>
                         operations.push(RelationOperations::NotEqual),
@@ -488,7 +483,7 @@ impl Syntax {
         }
 
         loop {
-            match &self.current_token {
+            match &self.current_token.token {
                 TokenGroup::Delimiters(delimiter) => match delimiter {
                     DelimitersGroup::Plus =>
                         operations.push(AdditionOperations::Addition),
@@ -522,7 +517,7 @@ impl Syntax {
         }
 
         loop {
-            match &self.current_token {
+            match &self.current_token.token {
                 TokenGroup::Delimiters(delimiter) => match delimiter {
                     DelimitersGroup::Asterisk =>
                         operations.push(MultiplicationOperations::Multiplication),
@@ -548,7 +543,7 @@ impl Syntax {
     }
 
     fn get_multiplier(&mut self) -> SyntaxResult<Multiplier> {
-        let res = match &self.current_token {
+        let res = match &self.current_token.token {
             TokenGroup::Identifier(id) =>
                 Ok(Multiplier::Identifier(*id)),
             TokenGroup::Variables(id) =>
@@ -568,7 +563,7 @@ impl Syntax {
             TokenGroup::Delimiters(DelimitersGroup::LeftParenthesis) => {
                 self.read_token();
                 match self.get_expression() {
-                    Ok(expression) => match self.current_token {
+                    Ok(expression) => match self.current_token.token {
                         TokenGroup::Delimiters(DelimitersGroup::RightParenthesis) => {
                             Ok(Multiplier::Expression(expression))
                         },
@@ -585,7 +580,10 @@ impl Syntax {
                 "Ожидался операнд".to_string()
             ))
         };
-        self.read_token();
+        if res.is_ok() {
+            self.read_token();
+        }
+
         res
     }
 
@@ -594,15 +592,27 @@ impl Syntax {
             self.current_token = next.clone();
             self.position += 1;
         } else {
-            self.current_token = TokenGroup::Eof;
+            self.current_token = self.tokens.last().unwrap_or_else(|| {
+                &Token {
+                    token: TokenGroup::Eof,
+                    line: 0,
+                    column: 0
+                }
+            }).clone();
             self.position += 1;
         }
     }
 
-    fn next_token(&mut self) -> TokenGroup {
+    fn next_token(&mut self) -> Token {
         match self.tokens.get(self.position) {
             Some(v) => v.clone(),
-            None => TokenGroup::Eof
+            None => self.tokens.last().unwrap_or_else(|| {
+                &Token {
+                    token: TokenGroup::Eof,
+                    line: 0,
+                    column: 0
+                }
+            }).clone()
         }
     }
 }

@@ -19,6 +19,29 @@ pub enum TokenGroup {
     Eof
 }
 
+pub struct TokenLexer {
+    pub token: TokenGroupLexer,
+    pub line: usize,
+    pub column: usize
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Token {
+    pub token: TokenGroup,
+    pub line: usize,
+    pub column: usize
+}
+
+impl Token {
+    pub fn eof() -> Self {
+        Self {
+            token: TokenGroup::Eof,
+            line: 0,
+            column: 0
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum KeywordsGroup {
     Integer,

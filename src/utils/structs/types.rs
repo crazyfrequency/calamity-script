@@ -1,4 +1,4 @@
-use std::ops::Shr;
+use std::ops::{BitAnd, Shr};
 
 #[derive(Debug, Clone)]
 pub enum LexerDigitalData {
@@ -13,10 +13,10 @@ pub enum ProgramTypes {
     Boolean(Option<bool>)
 }
 
-impl Shr for ProgramTypes {
+impl BitAnd for ProgramTypes {
     type Output = bool;
 
-    fn shr(self, rhs: Self) -> Self::Output {
+    fn bitand(self, rhs: Self) -> Self::Output {
         match self {
             ProgramTypes::Boolean(_) => match rhs {
                 ProgramTypes::Boolean(_) => true,

@@ -2,7 +2,7 @@ use std::{collections::HashMap, fs};
 
 use crate::utils::{lexer::Lexer, structs::tokens::TokenGroup};
 
-use super::{structs::{program::MainOperation, types::LexerDigitalData}, syntax::Syntax};
+use super::{structs::{program::MainOperation, tokens::Token, types::LexerDigitalData}, syntax::Syntax};
 
 #[derive(Debug, Clone)]
 pub struct Parser {
@@ -10,7 +10,7 @@ pub struct Parser {
     lexer: Lexer,
     syntax: Syntax,
 
-    pub tokens: Vec<TokenGroup>,
+    pub tokens: Vec<Token>,
     last_ident: u64,
     last_var: u64,
 
@@ -50,32 +50,60 @@ impl Parser {
         loop {
             let token = self.lexer.next_token();
             match token {
-                Ok(token) => {
-                    match token {
+                Ok((token, line, column)) => {
+                    match token.clone() {
                         TokenGroupLexer::Illegal(i) => {
                             println!("Обнаружен непредвиденный символ: {} в {}:{}:{}", i.0, self.path, i.1, i.2);
                             has_illegals = true;
                         },
-                        TokenGroupLexer::Keywords(v) => self.tokens.push(TokenGroup::Keywords(v)),
-                        TokenGroupLexer::Delimiters(v) => self.tokens.push(TokenGroup::Delimiters(v)),
+                        TokenGroupLexer::Keywords(v) => self.tokens.push(Token {
+                            token: TokenGroup::Keywords(v),
+                            line,
+                            column
+                        }),
+                        TokenGroupLexer::Delimiters(v) => self.tokens.push(Token {
+                            token: TokenGroup::Delimiters(v),
+                            line,
+                            column
+                        }),
                         TokenGroupLexer::Identifier(v) => match self.ident_map.get(&v) {
-                            Some(v) => self.tokens.push(TokenGroup::Identifier(*v)),
+                            Some(v) => self.tokens.push(Token {
+                                token: TokenGroup::Identifier(*v),
+                                line,
+                                column
+                            }),
                             None => {
                                 self.ident_map.insert(v, self.last_ident);
-                                self.tokens.push(TokenGroup::Identifier(self.last_ident));
+                                self.tokens.push(Token {
+                                    token: TokenGroup::Identifier(self.last_ident),
+                                    line,
+                                    column
+                                });
                                 self.last_ident += 1;
                             }
                         },
                         TokenGroupLexer::Variables(v) => match self.var_map.get(&v) {
-                            Some(v) => self.tokens.push(TokenGroup::Variables(*v)),
+                            Some(v) => self.tokens.push(Token {
+                                token: TokenGroup::Variables(*v),
+                                line,
+                                column
+                            }),
                             None => {
                                 self.var_map.insert(v, self.last_var);
-                                self.tokens.push(TokenGroup::Variables(self.last_var));
+                                self.tokens.push(Token {
+                                    token: TokenGroup::Variables(self.last_var),
+                                    line,
+                                    column
+                                });
                                 self.last_var += 1;
                             }
                         },
                         TokenGroupLexer::Eof => {
-                            self.tokens.push(TokenGroup::Eof);
+                            self.tokens.push(Token {
+                                token: TokenGroup::Eof,
+                                line,
+                                column
+                            });
                             break;
                         },
                     };
@@ -86,7 +114,6 @@ impl Parser {
 
         for var in self.var_map.clone() {
             let last_char = var.0.chars().last().unwrap();
-            println!("{:?}", var);
             match last_char {
                 'B'|'b' => {
                     let digit = &var.0[..var.0.len()-1];
@@ -141,11 +168,21 @@ impl Parser {
                 Ok(())
             },
             Err(e) => match e {
-                SyntaxError::Missing(token, text) =>
+                SyntaxError::Missing(token, text) => {
+                    let (line, column) = match self.tokens.get(self.syntax.position-1) {
+                        Some(Token { line, column, .. }) => (*line, *column),
+                        None => (0, 0)
+                    };
+
                     return Err(println!(
-                        "Синтаксический анализатор сообщает: {}, а встречена лексема: {:?}",
-                        text, token
-                    )),
+                        "Синтаксический анализатор сообщает: {}, а встречена лексема: {:?} по адресу {}:{}:{}",
+                        text,
+                        token.token,
+                        self.path,
+                        line,
+                        column
+                    ))
+                },
                 SyntaxError::Error(text) => 
                     return Err(println!(
                         "Синтаксический анализатор сообщает: {}",

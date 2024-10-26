@@ -42,11 +42,11 @@ impl Semantic {
     fn test_operator(&mut self, operator: Operator) -> SemanticResult<()> {
         match operator {
             Operator::Assignment(id, expression) => match self.test_expression(expression) {
-                Ok(_) => todo!(),
+                Ok(t) => t & self.identifiers[&id].clone(),
                 Err(e) => return Err(e)
             },
             _ => todo!()
-        }
+        };
         Ok(())
     }
 

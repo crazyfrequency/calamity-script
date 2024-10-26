@@ -31,11 +31,14 @@ impl Lexer {
         }
     }
 
-    pub fn next_token(&mut self) -> LexerResult<TokenGroupLexer> {
+    pub fn next_token(&mut self) -> LexerResult<(TokenGroupLexer, usize, usize)> {
         let res = self.skip_whitespace();
         if let Err(e) = res {
             return Err(e);
         }
+
+        let line = self.line;
+        let inline_position = self.inline_position;
 
         let token = match self.character {
             '{' => TokenGroupLexer::Delimiters(DelimitersGroup::LeftCurlyBracket),
@@ -93,26 +96,37 @@ impl Lexer {
             },
             'a'..='z'|'A'..='Z' => {
                 let identified = self.read_identifier();
-                return Ok(match identified.as_str() {
-                    "var" => TokenGroupLexer::Keywords(KeywordsGroup::Var),
-                    "let" => TokenGroupLexer::Keywords(KeywordsGroup::Let),
-                    "if" => TokenGroupLexer::Keywords(KeywordsGroup::If),
-                    "then" => TokenGroupLexer::Keywords(KeywordsGroup::Then),
-                    "else" => TokenGroupLexer::Keywords(KeywordsGroup::Else),
-                    "end_else" => TokenGroupLexer::Keywords(KeywordsGroup::EndElse),
-                    "for" => TokenGroupLexer::Keywords(KeywordsGroup::For),
-                    "do" => TokenGroupLexer::Keywords(KeywordsGroup::Do),
-                    "while" => TokenGroupLexer::Keywords(KeywordsGroup::While),
-                    "loop" => TokenGroupLexer::Keywords(KeywordsGroup::Loop),
-                    "input" => TokenGroupLexer::Keywords(KeywordsGroup::Input),
-                    "output" => TokenGroupLexer::Keywords(KeywordsGroup::Output),
-                    "integer" => TokenGroupLexer::Keywords(KeywordsGroup::Integer),
-                    "real" => TokenGroupLexer::Keywords(KeywordsGroup::Real),
-                    "boolean" => TokenGroupLexer::Keywords(KeywordsGroup::Boolean),
-                    "true" => TokenGroupLexer::Keywords(KeywordsGroup::True),
-                    "false" => TokenGroupLexer::Keywords(KeywordsGroup::False),
-                    name => TokenGroupLexer::Identifier(name.into())
-                });
+                return Ok((
+                    match identified.as_str() {
+                        "var" => TokenGroupLexer::Keywords(KeywordsGroup::Var),
+                        "let" => TokenGroupLexer::Keywords(KeywordsGroup::Let),
+                        "if" => TokenGroupLexer::Keywords(KeywordsGroup::If),
+                        "then" => TokenGroupLexer::Keywords(KeywordsGroup::Then),
+                        "else" => TokenGroupLexer::Keywords(KeywordsGroup::Else),
+                        "end_else" => TokenGroupLexer::Keywords(KeywordsGroup::EndElse),
+                        "for" => TokenGroupLexer::Keywords(KeywordsGroup::For),
+                        "do" => TokenGroupLexer::Keywords(KeywordsGroup::Do),
+                        "while" => TokenGroupLexer::Keywords(KeywordsGroup::While),
+                        "loop" => TokenGroupLexer::Keywords(KeywordsGroup::Loop),
+                        "input" => TokenGroupLexer::Keywords(KeywordsGroup::Input),
+                        "output" => TokenGroupLexer::Keywords(KeywordsGroup::Output),
+                        "integer" => TokenGroupLexer::Keywords(KeywordsGroup::Integer),
+                        "real" => TokenGroupLexer::Keywords(KeywordsGroup::Real),
+                        "boolean" => TokenGroupLexer::Keywords(KeywordsGroup::Boolean),
+                        "true" => TokenGroupLexer::Keywords(KeywordsGroup::True),
+                        "false" => TokenGroupLexer::Keywords(KeywordsGroup::False),
+                        name if name.contains('_') => return Err(LexerError {
+                            path: self.path.clone(),
+                            position: inline_position,
+                            line: self.line,
+                            token: TokenGroupLexer::Identifier(name.into()),
+                            message: "встречен символ '_'".into()
+                        }),
+                        name => TokenGroupLexer::Identifier(name.into())
+                    },
+                    line,
+                    inline_position
+                ));
             },
             '0'..='9'|'.' => return self.read_digit(),
             '\0' => TokenGroupLexer::Eof,
@@ -125,7 +139,7 @@ impl Lexer {
 
         self.read_char();
 
-        Ok(token)
+        Ok((token, line, inline_position))
     }
 
     fn read_char(&mut self) {
@@ -157,18 +171,17 @@ impl Lexer {
     fn read_identifier(&mut self) -> String {
         let pos = self.position-1;
 
-        while match self.character {
-            'a'..='z'|'A'..='Z'|'0'..='9' => true,
-            _ => false,
-        } {
+        while self.character.is_ascii_alphanumeric() || self.character == '_' {
             self.read_char();
         }
 
-        return String::from_iter(self.input[pos..self.position-1].to_vec());
+        return String::from_iter(&self.input[pos..self.position-1]);
     }
 
-    fn read_digit(&mut self) -> LexerResult<TokenGroupLexer> {
+    fn read_digit(&mut self) -> LexerResult<(TokenGroupLexer, usize, usize)> {
         let pos = self.position-1;
+        let line = self.line;
+        let inline_position = self.inline_position;
 
         let mut exp = false;
         let mut digit_type = DigitType::Binary;
@@ -264,11 +277,13 @@ impl Lexer {
                         } else {
                             return self.variable_error(pos, "число с плавающей точкой");
                         },
-                        _ => return Ok(TokenGroupLexer::Variables(
+                        _ => return Ok((TokenGroupLexer::Variables(
                             String::from_iter(
                                 self.input[pos..self.position-1].to_vec())
-                            )
-                        )
+                            ),
+                            line,
+                            inline_position
+                        ))
                     }
                 } else {
                     break;
@@ -287,14 +302,16 @@ impl Lexer {
             self.read_char();
         };
 
-        Ok(TokenGroupLexer::Variables(
+        Ok((TokenGroupLexer::Variables(
             String::from_iter(
                 self.input[pos..self.position-1].to_vec())
-            )
-        )
+            ),
+            line,
+            inline_position
+        ))
     }
 
-    fn variable_error(&self, pos: usize, message: impl Into<String>) -> LexerResult<TokenGroupLexer> {
+    fn variable_error<T>(&self, pos: usize, message: impl Into<String>) -> LexerResult<T> {
         Err(LexerError {
             path: self.path.clone(),
             position: self.inline_position,
