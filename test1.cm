@@ -1,0 +1,6 @@
+{
+    var a: real;b: boolean;;
+    input(a);
+    b = !(a <= 1.3);
+    output(a b);
+}

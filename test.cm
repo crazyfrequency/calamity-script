@@ -1,27 +1,31 @@
 {
     var a, b: integer; c: real; d: boolean;;
     var;  % существуют пустые переменные %
-    let a = 1Dh;
+    let a = 1Dh + 1;
     c = 3E2;
-    c = c / a; 
-    input(a b);
-    d = a < b;
+    c = c / 2.2;
+    input(a b c d);
+    a = a + 5 - 4 *8/2-a;
+    b = b / 2*4*3/a+1;
+    c = c / 2.1 + 1.0 / 8.0*16.0;
+    output(a b c d);
+    d = true;
     a = 1;
     output(a b c d);
     {
         let a = 0-1;
         c = 3E4;
-        let c = .3E-1-1;
-        c = c / a;
+        let c = .3E-1-1.0;
+        c = c / 2.0;
         input(a b);
-        d = a < b;
+        d = false;
         a = 1;
-        output(a b c d);
+        output(a b c d)%;
         for (a != 0 != 2;1 ; !1>=5>=1 < ( 4 > 2 )) {
             let a = a + 3
-        }
+        }%
     };
-    if (a  ==  1  ) then {
+    %if (a  ==  1  ) then {
         let a  = 0-1;
         c  = 3E4
     } else {
@@ -29,5 +33,5 @@
     } end_else;
     do while 1==1 {
         let a = a  + 2
-    } loop;
+    } loop; %
 }

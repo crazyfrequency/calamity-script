@@ -192,8 +192,4 @@ impl Parser {
         }
     }
 
-    pub fn run_semantic(&mut self) -> Result<(), ()> {
-        todo!()
-    }
-
 }

@@ -163,7 +163,7 @@ impl Syntax {
     }
 
     fn get_operator(&mut self) -> SyntaxResult<Operator> {
-        match self.current_token.token {
+        match self.current_token.token.clone() {
             TokenGroup::Delimiters(DelimitersGroup::LeftCurlyBracket) => {
                 self.read_token();
                 let mut operators = Vec::new();
@@ -428,7 +428,7 @@ impl Syntax {
                 self.read_token();
                 Ok(Operator::Output(expressions))
             },
-            _ => todo!()
+            t => Err(SyntaxError::Error(format!("Встречена непредвиденная лексема {}", t)))
         }
     }
 
