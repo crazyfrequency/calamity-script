@@ -20,12 +20,12 @@
         input(a b);
         d = false;
         a = 1;
-        output(a b c d)%;
+        output(a b c d);
         for (a != 0 != 2;1 ; !1>=5>=1 < ( 4 > 2 )) {
             let a = a + 3
-        }%
+        }
     };
-    %if (a  ==  1  ) then {
+    if (a  ==  1  ) then {
         let a  = 0-1;
         c  = 3E4
     } else {
@@ -33,5 +33,5 @@
     } end_else;
     do while 1==1 {
         let a = a  + 2
-    } loop; %
+    } loop; 
 }

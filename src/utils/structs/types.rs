@@ -1,4 +1,4 @@
-use std::{fmt::{write, Display}, ops::{BitAnd, Shr}};
+use std::{fmt::Display, ops::BitAnd};
 
 #[derive(Debug, Clone)]
 pub enum LexerDigitalData {

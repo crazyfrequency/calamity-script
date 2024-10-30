@@ -3,7 +3,7 @@ use std::env;
 mod tests;
 mod utils;
 
-use utils::{elf::Elf, parser::Parser, semantic::{self, error::SemanticError, Semantic}};
+use utils::{elf::Elf, parser::Parser, semantic::{error::SemanticError, Semantic}};
 
 fn main() {
     let (mut lexer_only, mut syntax, mut sem) = (false, false, false);
@@ -56,7 +56,6 @@ fn main() {
     }
     println!();
     println!("{:?}", parser_structure.ident_map);
-    println!("{:?}", parser_structure.var_map);
     println!("{:?}", parser_structure.vars);
     if lexer_only { return }
 
@@ -76,8 +75,10 @@ fn main() {
                 println!("Переменная {} ещё не объявлена или не инициализирована", idents.iter().find(|(_, v)| **v==id).unwrap().0),
             SemanticError::TypeError(s, f) =>
                 println!("Ошибка типов: невозможно выполнить операцию с {} и {}", f, s),
-            SemanticError::Error(e) =>
-                println!("{}", e)
+            SemanticError::NotBoolean(t) =>
+                println!("В условии обнаружен недопустимый тип {}", t),
+            SemanticError::IdentifierAlreadyDeclared(id) =>
+                println!("Переменная {} уже объявлена", idents.iter().find(|(_, v)| **v==id).unwrap().0)
         }
         return
     }

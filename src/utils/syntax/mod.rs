@@ -285,25 +285,43 @@ impl Syntax {
                     ))
                 };
                 
-                let mut expressions = Vec::with_capacity(3);
-                match self.get_expression() {
-                    Ok(v) => expressions.push(v),
-                    Err(e) => return Err(e)
-                };
-                for _ in 1..3 {
-                    match self.current_token.token {
-                        TokenGroup::Delimiters(DelimitersGroup::Semicolon) => self.read_token(),
-                        _ => return Err(SyntaxError::Missing(
-                            self.current_token.clone(),
-                            "Ожидалась ';'".to_string()
-                        ))
-                    }
-                    match self.get_expression() {
+                let mut expressions = Vec::new();
+                match self.current_token.token {
+                    TokenGroup::Delimiters(DelimitersGroup::Semicolon) => (),
+                    _ => match self.get_expression() {
                         Ok(v) => expressions.push(v),
                         Err(e) => return Err(e)
-                    };
+                    }
                 }
                 
+                match self.current_token.token {
+                    TokenGroup::Delimiters(DelimitersGroup::Semicolon) => self.read_token(),
+                    _ => return Err(SyntaxError::Missing(
+                        self.current_token.clone(),
+                        "Ожидалась ';' или выражение".to_string()
+                    ))
+                }
+                match self.current_token.token {
+                    TokenGroup::Delimiters(DelimitersGroup::Semicolon) => (),
+                    _ => match self.get_expression() {
+                        Ok(v) => expressions.push(v),
+                        Err(e) => return Err(e)
+                    }
+                }
+                match self.current_token.token {
+                    TokenGroup::Delimiters(DelimitersGroup::Semicolon) => self.read_token(),
+                    _ => return Err(SyntaxError::Missing(
+                        self.current_token.clone(),
+                        "Ожидалась ';' или выражение".to_string()
+                    ))
+                }
+                match self.current_token.token {
+                    TokenGroup::Delimiters(DelimitersGroup::RightParenthesis) => (),
+                    _ => match self.get_expression() {
+                        Ok(v) => expressions.push(v),
+                        Err(e) => return Err(e)
+                    }
+                }
                 match self.current_token.token {
                     TokenGroup::Delimiters(DelimitersGroup::RightParenthesis) =>
                         self.read_token(),
@@ -315,9 +333,7 @@ impl Syntax {
                 
                 match self.get_operator() {
                     Ok(op) => Ok(Operator::For(
-                        expressions[0].clone(),
-                        expressions[1].clone(),
-                        expressions[2].clone(),
+                        expressions,
                         Box::new(op)
                     )),
                     Err(e) => Err(e)

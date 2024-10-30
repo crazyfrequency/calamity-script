@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::{self, File}, io::{Error, Seek, SeekFrom, Write}, path::Path};
+use std::{fs::{self, File}, io::{Error, Seek, SeekFrom, Write}, path::Path};
 
 use rela::Rela;
 use sections::Section;

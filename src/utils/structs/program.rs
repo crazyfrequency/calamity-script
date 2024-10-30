@@ -11,7 +11,7 @@ pub enum Operator {
     Composite(Vec<Operator>),
     Assignment(u64, Expression),
     If(Expression, Box<Self>, Option<Box<Self>>),
-    For(Expression, Expression, Expression, Box<Self>),
+    For(Vec<Expression>, Box<Self>),
     While(Expression, Box<Self>),
     Input(Vec<u64>),
     Output(Vec<Expression>)

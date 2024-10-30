@@ -12,20 +12,6 @@ pub struct Section {
 }
 
 impl Section {
-    pub fn null() -> Self {
-        Self {
-            name: 0,
-            s_type: 0,
-            flags: 0,
-            addr: 0,
-            offset: 0,
-            size: 0,
-            link: 0,
-            info: 0,
-            addr_align: 0,
-            ent_size: 0
-        }
-    }
 
     pub fn data(size: u64) -> Self {
         Self {

@@ -11,7 +11,7 @@ pub mod error;
 pub struct Semantic {
     program: Vec<MainOperation>,
     identifiers: HashMap<u64, ProgramTypes>,
-    pub reserv: u64,
+    pub reserve: u64,
     vars: HashMap<u64, LexerDigitalData>,
     pub asm: Vec<u8>,
     position: u64,
@@ -26,7 +26,7 @@ impl Semantic {
             vars,
             asm: Vec::new(),
             position: 0,
-            reserv,
+            reserve: reserv,
             asm_idents: Vec::new()
         }
     }
@@ -40,7 +40,10 @@ impl Semantic {
                 MainOperation::CreateVariable(ident_vec) =>
                     for (identifiers, identifiers_type) in ident_vec {
                         for id in identifiers {
-                            self.identifiers.insert(id, identifiers_type.clone());
+                            match self.identifiers.get(&id) {
+                                None => self.identifiers.insert(id, identifiers_type.clone()),
+                                Some(_) => return Err(SemanticError::IdentifierAlreadyDeclared(id))
+                            };
                         }
                     },
                 MainOperation::Operator(operator) => {
@@ -126,14 +129,83 @@ impl Semantic {
                     };
                 };
                 return Ok(())
+            },
+            Operator::If(expression, operator1, operator2) => {
+                let p_type = self.test_expression(expression)?;
+                match p_type {
+                    ProgramTypes::Boolean(_) => (),
+                    t => return Err(SemanticError::NotBoolean(t))
+                }
+
+                let jz_position = self.jz_default();
+                self.test_operator(*operator1)?;
+
+                match operator2 {
+                    Some(operator2) => {
+                        let jmp_position = self.jpm_default();
+                        self.jz(jz_position);
+                        self.test_operator(*operator2)?;
+                        self.jmp(jmp_position);
+                    },
+                    None => {
+                        self.jz(jz_position);
+                    }
+                }
+
+                return Ok(())
             }
-            _ => todo!()
+            Operator::For(expressions, operator) => {
+                let start_position = self.position;
+                let mut expressions = expressions.iter();
+
+                if expressions.len() == 0 {
+                    self.asm_bool(true);
+                } else {
+                    let p_type = self.test_expression(expressions.next().unwrap().clone())?;
+                    match p_type {
+                        ProgramTypes::Boolean(_) => (),
+                        t => return Err(SemanticError::NotBoolean(t))
+                    };
+
+                    for expression in expressions {
+                        self.push_rax();
+                        let p_type = self.test_expression(expression.clone())?;
+
+                        match p_type {
+                            ProgramTypes::Boolean(_) => (),
+                            t => return Err(SemanticError::NotBoolean(t))
+                        };
+
+                        self.pop_rbx();
+                        self.cmp();
+                        self.and();
+                    }
+                }
+                let jz_position = self.jz_default();
+                self.test_operator(*operator)?;
+                self.jmp_cycle(start_position);
+                self.jz(jz_position);
+                return Ok(())
+            },
+            Operator::While(expression, operator) => {
+                let start_position = self.position;
+                let p_type = self.test_expression(expression.clone())?;
+                match p_type {
+                    ProgramTypes::Boolean(_) => (),
+                    t => return Err(SemanticError::NotBoolean(t))
+                };
+                let jz_position = self.jz_default();
+                self.test_operator(*operator)?;
+                self.jmp_cycle(start_position);
+                self.jz(jz_position);
+                return Ok(())
+            }
         }
     }
 
     fn test_expression(&mut self, expression: Expression) -> SemanticResult<ProgramTypes> {
         let Expression {operands, operations} = expression;
-        let (mut operands, mut operations) = (operands.into_iter(), operations.into_iter());
+        let (mut operands, operations) = (operands.into_iter(), operations.into_iter());
         let op1 = self.test_operand(operands.next().unwrap())?;
         let mut current_type = op1;
 
@@ -225,7 +297,7 @@ impl Semantic {
 
     fn test_term(&mut self, term: Term) -> SemanticResult<ProgramTypes> {
         let Term { multipliers, operations } = term;
-        let (mut multipliers, mut operations) = (multipliers.into_iter(), operations.into_iter());
+        let (mut multipliers, operations) = (multipliers.into_iter(), operations.into_iter());
         let op1  = self.test_multiplier(multipliers.next().unwrap())?;
 
         for (multiplier, operation) in multipliers.zip(operations) {
@@ -329,15 +401,15 @@ impl Semantic {
         self.asm.append(&mut vec![0x48, 0xbf, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
         match i_type {
-            ProgramTypes::Float(_) => self.asm_idents.push((self.reserv+2, self.position - 8, true)),
-            _ => self.asm_idents.push((self.reserv+1, self.position - 8, true))
+            ProgramTypes::Float(_) => self.asm_idents.push((self.reserve+2, self.position - 8, true)),
+            _ => self.asm_idents.push((self.reserve+1, self.position - 8, true))
         }
         self.asm.append(&mut vec![0x48, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
         self.asm_idents.push((id, self.position - 8, true));
         self.asm.append(&mut vec![0xe8, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
-        self.asm_idents.push((self.reserv+5, self.position - 4, false));
+        self.asm_idents.push((self.reserve+5, self.position - 4, false));
         if i_type & ProgramTypes::Boolean(None) {
             self.mov_rax_ident(id);
             self.asm.append(&mut vec![0x48, 0x85, 0xc0, 0x74, 12]);
@@ -359,21 +431,21 @@ impl Semantic {
         self.cur_pos();
         match p_type {
             ProgramTypes::Float(_) => {
-                self.asm_idents.push((self.reserv+4, self.position - 8, true));
+                self.asm_idents.push((self.reserve+4, self.position - 8, true));
                 self.asm.append(&mut vec![0x48, 0xbe, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
-                self.assign(self.reserv);
+                self.assign(self.reserve);
                 self.asm.append(&mut vec![0xb8, 0x01, 0x00, 0x00, 0x00, 0xf2, 0x0f, 0x10, 0x04, 0x25, 0x00, 0x00, 0x00, 0x00]);
                 self.cur_pos();
-                self.asm_idents.push((self.reserv, self.position - 4, false));
+                self.asm_idents.push((self.reserve, self.position - 4, false));
             },
             _ => {
-                self.asm_idents.push((self.reserv+3, self.position - 8, true));
+                self.asm_idents.push((self.reserve+3, self.position - 8, true));
                 self.asm.append(&mut vec![0x48, 0x89, 0xc6, 0x48, 0x31, 0xc0]);
             }
         }
         self.asm.append(&mut vec![0xe8, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
-        self.asm_idents.push((self.reserv+6, self.position - 4, false));
+        self.asm_idents.push((self.reserve+6, self.position - 4, false));
     }
 
     fn mov_rax_f64(&mut self, num: f64) {
@@ -398,11 +470,6 @@ impl Semantic {
         self.cur_pos();
     }
 
-    fn pop_rax(&mut self) {
-        self.asm.push(0x58);
-        self.cur_pos();
-    }
-
     fn pop_rbx(&mut self) {
         self.asm.append(&mut vec![0x5b, 0x48, 0x93]);
         self.cur_pos();
@@ -422,46 +489,46 @@ impl Semantic {
         self.asm.append(&mut vec![0x9b, 0xdb, 0xe3]);
         self.asm.append(&mut vec![0x48, 0x89, 0x04, 0x25, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
-        self.asm_idents.push((self.reserv, self.position - 4, false));
+        self.asm_idents.push((self.reserve, self.position - 4, false));
         self.asm.append(&mut vec![0xdd, 0x04, 0x25, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
-        self.asm_idents.push((self.reserv, self.position - 4, false));
+        self.asm_idents.push((self.reserve, self.position - 4, false));
         self.asm.append(&mut vec![0x48, 0x89, 0x1c, 0x25, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
-        self.asm_idents.push((self.reserv, self.position - 4, false));
+        self.asm_idents.push((self.reserve, self.position - 4, false));
     }
 
     fn add_fpu(&mut self) {
         self.asm.append(&mut vec![0xdc, 0x04, 0x25, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
-        self.asm_idents.push((self.reserv, self.position - 4, false));
+        self.asm_idents.push((self.reserve, self.position - 4, false));
     }
 
     fn mul_fpu(&mut self) {
         self.asm.append(&mut vec![0xdc, 0x0c, 0x25, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
-        self.asm_idents.push((self.reserv, self.position - 4, false));
+        self.asm_idents.push((self.reserve, self.position - 4, false));
     }
 
     fn div_fpu(&mut self) {
         self.asm.append(&mut vec![0xdc, 0x34, 0x25, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
-        self.asm_idents.push((self.reserv, self.position - 4, false));
+        self.asm_idents.push((self.reserve, self.position - 4, false));
     }
 
     fn save_fpu_rax(&mut self) {
         self.asm.append(&mut vec![0xdd, 0x1c, 0x25, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
-        self.asm_idents.push((self.reserv, self.position - 4, false));
+        self.asm_idents.push((self.reserve, self.position - 4, false));
         self.asm.append(&mut vec![0x48, 0x8b, 0x04, 0x25, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
-        self.asm_idents.push((self.reserv, self.position - 4, false));
+        self.asm_idents.push((self.reserve, self.position - 4, false));
     }
 
     fn sub_fpu(&mut self) {
         self.asm.append(&mut vec![0xdc, 0x24, 0x25, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
-        self.asm_idents.push((self.reserv, self.position - 4, false));
+        self.asm_idents.push((self.reserve, self.position - 4, false));
     }
 
     fn add_i64(&mut self) {
@@ -494,11 +561,25 @@ impl Semantic {
         self.mov_rax_i64(if b {-1} else {0});
     }
 
-    fn jmp(&mut self, pos: u64) {
+    fn jmp_cycle(&mut self, pos: u64) {
         self.asm.push(0xe9);
-        let offset = (pos - self.position - 5) as i32;
+        let offset = (pos as i64 - self.position as i64 - 5) as i32;
         self.asm.append(&mut offset.to_le_bytes().to_vec());
         self.cur_pos();
+    }
+
+    fn jpm_default(&mut self) -> u64 {
+        self.asm.append(&mut vec![0xe9, 0x00, 0x00, 0x00, 0x00]);
+        self.cur_pos();
+        self.position - 4
+    }
+
+    fn jmp(&mut self, jmp_pos: u64) {
+        let offset = (self.position - jmp_pos - 4) as i32;
+        let bytes = offset.to_le_bytes();
+        for i in 0..4 {
+            self.asm[jmp_pos as usize + i] = bytes[i];
+        }
     }
 
     fn jz_default(&mut self) -> u64 {
@@ -508,7 +589,7 @@ impl Semantic {
     }
 
     fn jz(&mut self, jz_pos: u64) {
-        let offset = (self.position - jz_pos + 4) as i32;
+        let offset = (self.position - jz_pos - 4) as i32;
         let bytes = offset.to_le_bytes();
         for i in 0..4 {
             self.asm[jz_pos as usize + i] = bytes[i];
@@ -524,7 +605,7 @@ impl Semantic {
         self.init_fpu();
         self.asm.append(&mut vec![0xdd, 0x04, 0x25, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
-        self.asm_idents.push((self.reserv, self.position - 4, false));
+        self.asm_idents.push((self.reserve, self.position - 4, false));
         self.asm.append(&mut vec![0xdb, 0xf1]);
         self.cur_pos();
     }

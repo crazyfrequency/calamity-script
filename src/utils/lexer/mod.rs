@@ -1,3 +1,5 @@
+use std::{fs::File, sync::Arc};
+
 use crate::utils::structs::tokens::{DelimitersGroup, DigitType, KeywordsGroup, TokenGroupLexer};
 
 mod error;
@@ -7,27 +9,32 @@ use error::{LexerError, LexerResult};
 pub struct Lexer {
     path: String,
     position: usize,
-    length: usize,
+    buffer: Vec<char>,
 
     line: usize,
     inline_position: usize,
 
+    previous_character: char,
     character: char,
-    input: Vec<char>
+    next_character: char,
+    input: Arc<File>
 }
 
 impl Lexer {
-    pub fn new(buf: Vec<char>, path: impl Into<String>) -> Self {
+    pub fn new(file: File, path: impl Into<String>) -> Self {
+        let file = Arc::new(file);
         Self {
             path: path.into(),
             position: 0,
-            length: buf.len(),
+            buffer: Vec::new(),
 
             line: 1,
             inline_position: 0,
 
+            previous_character: ' ',
             character: ' ',
-            input: buf.into()
+            next_character: read_char::read_next_char(&mut file.clone()).expect("Не удалось прочитать первый символ, возможно файл пустой"),
+            input: file
         }
     }
 
@@ -143,10 +150,11 @@ impl Lexer {
     }
 
     fn read_char(&mut self) {
-        if self.position >= self.length {
-            self.character = '\0';
-        } else {
-            self.character = self.input[self.position];
+        self.previous_character = self.character;
+        self.character = self.next_character;
+        match read_char::read_next_char(&mut self.input.clone()) {
+            Ok(v) => self.next_character = v,
+            Err(_) => self.next_character = '\0'
         }
 
         self.position += 1;
@@ -154,32 +162,28 @@ impl Lexer {
     }
 
     fn next_char(&self) -> char {
-        match self.input.get(self.position) {
-            Some(v) => *v,
-            None => '\0'
-        }
+        self.next_character
     }
 
     fn prev_char(&self) -> char {
-        if self.position <= 0 {
-            ' '
-        } else {
-            self.input[self.position-2]
-        }
+        self.previous_character
     }
 
     fn read_identifier(&mut self) -> String {
-        let pos = self.position-1;
 
         while self.character.is_ascii_alphanumeric() || self.character == '_' {
+            self.buffer.push(self.character);
             self.read_char();
         }
 
-        return String::from_iter(&self.input[pos..self.position-1]);
+        let res = String::from_iter(&self.buffer);
+
+        self.buffer.clear();
+
+        return res;
     }
 
     fn read_digit(&mut self) -> LexerResult<(TokenGroupLexer, usize, usize)> {
-        let pos = self.position-1;
         let line = self.line;
         let inline_position = self.inline_position;
 
@@ -202,13 +206,14 @@ impl Lexer {
                         if digit_type.clone() >> DigitType::Hex {
                             digit_type = DigitType::Hex;
                         } else {
-                            return self.variable_error(pos, "шестнадцатеричное число");
+                            return self.variable_error("шестнадцатеричное число");
                         },
                     _ => if digit_type.clone() >> DigitType::Binary {
+                        self.buffer.push(self.character);
                         self.read_char();
                         break;
                     } else {
-                        return self.variable_error(pos, "двоичное число");
+                        return self.variable_error("двоичное число");
                     }
                 },
                 'D'|'d' => match self.next_char() {
@@ -216,13 +221,14 @@ impl Lexer {
                         if digit_type.clone() >> DigitType::Hex {
                             digit_type = DigitType::Hex;
                         } else {
-                            return self.variable_error(pos, "шестнадцатеричное число");
+                            return self.variable_error("шестнадцатеричное число");
                         },
                     _ => if digit_type.clone() >> DigitType::Digital {
+                        self.buffer.push(self.character);
                         self.read_char();
                         break;
                     } else {
-                        return self.variable_error(pos, "десятичное число");
+                        return self.variable_error("десятичное число");
                     }
                 },
                 'E'|'e' =>
@@ -231,43 +237,44 @@ impl Lexer {
                             digit_type = DigitType::HexPoint;
                         }
                         if exp {
-                            return self.variable_error(pos, "число с плавающей точкой, обнаружен второй символ 'E'");
+                            return self.variable_error("число с плавающей точкой, обнаружен второй символ 'E'");
                         }
                         exp = true;
                     } else {
-                        return self.variable_error(pos, "число с плавающей точкой");
+                        return self.variable_error("число с плавающей точкой");
                     },
                 'H'|'h' => match self.next_char() {
                     '0'..'9'|'a'..='f'|'A'..='F'|'.'|'h'|'H' =>
-                        return self.variable_error(pos, "шестнадцатеричное число, так как обнаружен не поддерживаемый символ 'H' или 'h'"),
+                        return self.variable_error("шестнадцатеричное число, так как обнаружен не поддерживаемый символ 'H' или 'h'"),
                     _ => if digit_type.clone() >> DigitType::Hex {
+                        self.buffer.push(self.character);
                         self.read_char();
                         break;
                     } else {
-                        return self.variable_error(pos, "шестнадцатеричное число");
+                        return self.variable_error("шестнадцатеричное число");
                     }
                 },
                 '.' => if digit_type.clone() >> DigitType::Point {
                     digit_type = DigitType::Point;
                     if exp {
-                        return self.variable_error(pos, "число с плавающей точкой, неожиданная точка в экспоненте");
+                        return self.variable_error("число с плавающей точкой, неожиданная точка в экспоненте");
                     }
                     match self.next_char() {
                         '0'..='9' => (),
-                        _ => return self.variable_error(pos, "число с плавающей точкой, неожиданная точка без цифр после неё")
+                        _ => return self.variable_error("число с плавающей точкой, неожиданная точка без цифр после неё")
                     }
                 } else {
-                    return self.variable_error(pos, "число с плавающей точкой");
+                    return self.variable_error("число с плавающей точкой");
                 },
                 'O'|'o' => match self.next_char() {
                     '0'..'9'|'a'..='f'|'A'..='F'|'.'|'h'|'H' => {
-                        return self.variable_error(pos, "восьмеричное число, так как дальше обнаружен не поддерживаемый символ");
+                        return self.variable_error("восьмеричное число, так как дальше обнаружен не поддерживаемый символ");
                     },
                     _ => if digit_type.clone() >> DigitType::Octal {
                         self.next_char();
                         break;
                     } else {
-                        return self.variable_error(pos, "восьмеричное число");
+                        return self.variable_error("восьмеричное число");
                     }
                 },
                 '+'|'-' => if exp {
@@ -275,15 +282,17 @@ impl Lexer {
                         'E'|'e' => if digit_type.clone() >> DigitType::Point {
                             digit_type = DigitType::Point;
                         } else {
-                            return self.variable_error(pos, "число с плавающей точкой");
+                            return self.variable_error("число с плавающей точкой");
                         },
-                        _ => return Ok((TokenGroupLexer::Variables(
-                            String::from_iter(
-                                self.input[pos..self.position-1].to_vec())
-                            ),
-                            line,
-                            inline_position
-                        ))
+                        _ => {
+                            let res = String::from_iter(&self.buffer);
+                            self.buffer.clear();
+                            return Ok(
+                                (TokenGroupLexer::Variables(res),
+                                line,
+                                inline_position
+                            ))
+                        }
                     }
                 } else {
                     break;
@@ -293,25 +302,29 @@ impl Lexer {
                 } else if digit_type.clone() >> DigitType::Point {
                     match self.prev_char() {
                         '0'..='9' => break,
-                        _ => return self.variable_error(pos, "число с плавающей точкой"),
+                        _ => return self.variable_error("число с плавающей точкой"),
                     }
                 } else {
-                    return self.variable_error(pos, "десятичное число или число с плавающей точкой");
+                    return self.variable_error("десятичное число или число с плавающей точкой");
                 }
             };
+            self.buffer.push(self.character);
             self.read_char();
         };
 
-        Ok((TokenGroupLexer::Variables(
-            String::from_iter(
-                self.input[pos..self.position-1].to_vec())
-            ),
+        let res = String::from_iter(&self.buffer);
+        self.buffer.clear();
+
+        Ok((
+            TokenGroupLexer::Variables(res),
             line,
             inline_position
         ))
     }
 
-    fn variable_error<T>(&self, pos: usize, message: impl Into<String>) -> LexerResult<T> {
+    fn variable_error<T>(&mut self, message: impl Into<String>) -> LexerResult<T> {
+        let res = String::from_iter(&self.buffer);
+        self.buffer.clear();
         Err(LexerError {
             path: self.path.clone(),
             position: self.inline_position,
@@ -319,7 +332,7 @@ impl Lexer {
             token: TokenGroupLexer::Variables(String::new()),
             message: format!(
                 "Не возможно интерпретировать '{}' как {}",
-                String::from_iter(self.input[pos..self.position-1].to_vec()),
+                res,
                 message.into()
             )
         })

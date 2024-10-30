@@ -25,8 +25,8 @@ pub struct Parser {
 impl Parser {
     pub fn new(path: impl Into<String>) -> Self {
         let path: String = path.into();
-        let buf = fs::read_to_string(path.clone()).expect("Не удалось прочитать файл");
-        let lexer = Lexer::new(buf.chars().collect::<Vec<char>>(), path.clone());
+        let file = fs::File::open(path.clone()).expect("Не удалось открыть файл");
+        let lexer = Lexer::new(file, path.clone());
         let syntax = Syntax::new();
         Self {
             path,
