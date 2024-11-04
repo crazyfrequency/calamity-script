@@ -1,7 +1,7 @@
 {
     var a, b: real; c: boolean;;
-    input(a b);
-    if (a > b) then 
+    input(a b c);
+    if (c) then 
         output(true)
     else
         output(false)

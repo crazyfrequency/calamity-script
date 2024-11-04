@@ -1,0 +1,12 @@
+{
+    var a,b,c,d,e,f: real; g, h, k: integer; boolTrue, boolFalse: boolean;;
+    a = .1e2;
+    b = 1.1;
+    c = 2.0E-2 - 1.0e+1 + 0.1e3 - 0.2E10;
+    g = 1b + 0101B;
+    h = 1e2f3H + 1E2F4abcdH - 1E2F4ABCDh;
+    k = 23232d;
+    boolFalse = false;
+    boolTrue = true;
+    output(a b c g h k !boolTrue boolFalse);
+}

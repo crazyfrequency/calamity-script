@@ -14,7 +14,6 @@ pub struct Lexer {
     line: usize,
     inline_position: usize,
 
-    previous_character: char,
     character: char,
     next_character: char,
     input: Arc<File>
@@ -31,7 +30,6 @@ impl Lexer {
             line: 1,
             inline_position: 0,
 
-            previous_character: ' ',
             character: ' ',
             next_character: read_char::read_next_char(&mut file.clone()).expect("Не удалось прочитать первый символ, возможно файл пустой"),
             input: file
@@ -150,7 +148,6 @@ impl Lexer {
     }
 
     fn read_char(&mut self) {
-        self.previous_character = self.character;
         self.character = self.next_character;
         match read_char::read_next_char(&mut self.input.clone()) {
             Ok(v) => self.next_character = v,
@@ -166,7 +163,11 @@ impl Lexer {
     }
 
     fn prev_char(&self) -> char {
-        self.previous_character
+        match self.buffer.get(self.buffer.len()-1) {
+            Some(v) => *v,
+            None => ' '
+        }
+        
     }
 
     fn read_identifier(&mut self) -> String {
@@ -296,6 +297,11 @@ impl Lexer {
                     }
                 } else {
                     break;
+                },
+                'A'..='Z'|'a'..='z' => if digit_type.clone() >> DigitType::Hex {
+                    digit_type = DigitType::Hex;
+                } else {
+                    return self.variable_error("шестнадцатеричное число");
                 },
                 _ => if digit_type.clone() >> DigitType::Digital {
                     break;

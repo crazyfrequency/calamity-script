@@ -6,6 +6,15 @@ pub enum LexerDigitalData {
     Float(f64)
 }
 
+impl Display for LexerDigitalData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", match self {
+            LexerDigitalData::Float(v) => format!("{}", v),
+            LexerDigitalData::Integer(v) => format!("{}", v)
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ProgramTypes {
     Integer(Option<i64>),

@@ -154,7 +154,7 @@ impl Parser {
         }
     }
 
-    pub fn run_syntax(&mut self) -> Result<(), ()> {
+    pub fn run_syntax(&mut self, compact_mode: bool) -> Result<(), ()> {
         let res = self.syntax.run_process(
             self.tokens.clone(),
             self.vars.clone()
@@ -164,7 +164,9 @@ impl Parser {
         match res {
             Ok(data) => {
                 self.program = data;
-                println!("{:#?}", self.program);
+                if !compact_mode {
+                    println!("{:#?}", self.program);
+                }
                 Ok(())
             },
             Err(e) => match e {

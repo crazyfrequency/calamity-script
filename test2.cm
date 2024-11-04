@@ -1,0 +1,5 @@
+{
+    var a: integer; b: boolean;;
+    a = 0;
+    b = false && true;
+}

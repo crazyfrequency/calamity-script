@@ -3,7 +3,7 @@ use std::env;
 mod tests;
 mod utils;
 
-use utils::{elf::Elf, parser::Parser, semantic::{error::SemanticError, Semantic}};
+use utils::{elf::Elf, parser::Parser, semantic::{error::SemanticError, Semantic}, structs::types::LexerDigitalData};
 
 fn main() {
     let (mut lexer_only, mut syntax, mut sem) = (false, false, false);
@@ -11,6 +11,9 @@ fn main() {
     let mut i = 1;
     let mut error = false;
     let mut path = String::new();
+    let mut out_path = String::new();
+    let mut lex_objects = false;
+    let mut compact_mode = false;
     let last = args.len() - 1;
 
     while i < args.len() {
@@ -26,8 +29,37 @@ fn main() {
             "-sem" => {
                 sem = true;
                 i+=1;
+            },
+            "-lo" => {
+                lex_objects = true;
+                i+=1;
+            },
+            "-c" => {
+                compact_mode = true;
+                i+=1;
+            },
+            "-o" => match args.get(i+1) {
+                Some(v) => {
+                    out_path = v.clone();
+                    i+=2;
+                },
+                None => {
+                    println!("Не указан выходной файл");
+                    return;
+                }
+            },
+            "-h"|"--help" => {
+                println!("Компилятор принимает следующие аргументы, последний аргумент имя файла");
+                println!("\t-h | --help - отобразит текущее сообщение");
+                println!("\t-l - остановиться после лексического анализа");
+                println!("\t-lo - Выводит лексемы в виде объектов");
+                println!("\t-st - остановиться после синтаксического анализа");
+                println!("\t-sem - остановиться после семантического анализа");
+                println!("\t-c - Компактный режим");
+                println!("\t-o - имя выходного объектного файла");
+                return;
             }
-            _    => {
+            _ => {
                 if i == last {
                     path = args[i].clone();
                     break;
@@ -43,24 +75,56 @@ fn main() {
         return;
         // path = String::from("test.cm");
     }
+    if out_path.is_empty() {
+        out_path = path.clone() + ".o";
+    }
     if error {
-        println!("Неверные аргументы, доступные аргументы: -l, -st, -sem");
+        println!("Неверные аргументы, доступные аргументы можно увидеть введя: --help");
         return;
     }
-    let mut parser_structure = Parser::new(path.clone());
+    let mut parser_structure = Parser::new(path);
     let res = parser_structure.run_lexer();
-    if let Err(_) = res { return }
+    if res.is_ok() {
+        println!("Лексический анализ успешно выполнен.");
+    } else {
+        return;
+    };
     let tokens = parser_structure.tokens.clone();
-    for i in tokens {
-        print!("{} ", i.token);
+    if !compact_mode {
+        for i in tokens {
+            if lex_objects {
+                println!("{:?}", i.token);
+            } else {
+                print!("{} ", i.token);
+            }
+        }
+        println!();
+        let mut identifiers = parser_structure.ident_map.clone().into_iter()
+            .map(|(name, id)| (id, name)).collect::<Vec<(u64, String)>>();
+        identifiers.sort_by(|a, b| a.0.cmp(&b.0));
+        let mut variables = parser_structure.vars.clone()
+            .into_iter().collect::<Vec<(u64, LexerDigitalData)>>();
+        variables.sort_by(|a, b| a.0.cmp(&b.0));
+        println!("|        Переменные        |           Числа          |");
+        println!("|---|----------------------|----|---------------------|");
+        for i in 0..identifiers.len().max(variables.len()) {
+            println!("|{} | {}|", match identifiers.get(i) {
+                Some((id, name)) => format!("{0: <2} | {1: <20}", id, name),
+                None => format!("{0: <2} | {1: <20}", "", "")
+            }, match variables.get(i) {
+                Some((id, value)) => format!("{0: <2} | {1: <20}", id, value.to_string()),
+                None => format!("{0: <2} | {1: <20}", "", "")
+            });
+        }
     }
-    println!();
-    println!("{:?}", parser_structure.ident_map);
-    println!("{:?}", parser_structure.vars);
     if lexer_only { return }
 
-    let res = parser_structure.run_syntax();
-    if let Err(_) = res { return }
+    let res = parser_structure.run_syntax(compact_mode);
+    if res.is_ok() {
+        println!("Синтаксический анализ успешно выполнен.");
+    } else {
+        return;
+    };
     if syntax { return }
     let (inner_structure, vars, idents) = (parser_structure.program, parser_structure.vars, parser_structure.ident_map);
     let mut semantic = Semantic::new(inner_structure.clone(), vars.clone(), idents.len() as u64);
@@ -70,7 +134,7 @@ fn main() {
             SemanticError::AssignError(from, to) =>
                 println!("Не удалось присвоить тип {} к {}", from, to),
             SemanticError::InvalidOperation(t, o) =>
-                println!("Невозможно выполнить операцию {} на типом {}", o, t),
+                println!("Невозможно выполнить операцию {} над типом {}", o, t),
             SemanticError::NotDefined(id) =>
                 println!("Переменная {} ещё не объявлена или не инициализирована", idents.iter().find(|(_, v)| **v==id).unwrap().0),
             SemanticError::TypeError(s, f) =>
@@ -82,9 +146,19 @@ fn main() {
         }
         return
     }
-    println!("{:?}", semantic.asm);
+    if !compact_mode {
+        println!("{:?}", semantic.asm);
+    };
+    if res.is_ok() {
+        println!("Семантический анализ успешно выполнен.");
+    };
     if sem { return }
-    let mut elf = Elf::new(path+".o", idents.len() as u16, semantic.asm, semantic.asm_idents);
+    let mut elf = Elf::new(out_path, idents.len() as u16, semantic.asm, semantic.asm_idents);
     let res = elf.process();
-    println!("{:?}", res);
+    if res.is_ok() {
+        println!("Создание объектного файла успешно выполнено.");
+    };
+    loop {
+        
+    }
 }

@@ -1,0 +1,16 @@
+{
+    var i, n, a, b, next: integer;;
+    let i = 1;
+    a = 0;
+    b = 1;
+    input(n);
+    output(a);
+    if n>=2 then output(b) end_else;
+    for(;;i<=n-2) {
+        next = a + b;
+        output(next);
+        a = b;
+        b = next;
+        i = i + 1
+    };
+}

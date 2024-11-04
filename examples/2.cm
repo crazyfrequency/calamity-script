@@ -1,0 +1,11 @@
+{
+    var i, n, result: integer;;
+    let i = 1;
+    result = 1;
+    input(n);
+    for(;i<=n;) {
+        result = result * i;
+        let i = i + 1
+    };
+    output(result);
+}

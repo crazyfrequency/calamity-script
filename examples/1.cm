@@ -1,0 +1,9 @@
+{
+    var number: integer;;
+    input(number);
+    if number == 5 then
+        output(true)
+    else
+        output(false)
+    end_else;
+}

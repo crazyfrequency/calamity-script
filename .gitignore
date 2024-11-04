@@ -1,1 +1,5 @@
 /target
+/examples/out
+*.o
+*.out
+*.out.**

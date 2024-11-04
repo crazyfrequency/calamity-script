@@ -1,0 +1,12 @@
+{
+    var i, n, sum: real;;
+    n = .0;
+    sum = .0;
+    input(i);
+    do while i != 0E0 {
+        n = n+1E+0;
+        sum = sum + i;
+        input(i)
+    } loop;
+    output(sum/n);
+}
