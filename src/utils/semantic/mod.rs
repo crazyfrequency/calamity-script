@@ -298,7 +298,7 @@ impl Semantic {
     fn test_term(&mut self, term: Term) -> SemanticResult<ProgramTypes> {
         let Term { multipliers, operations } = term;
         let (mut multipliers, operations) = (multipliers.into_iter(), operations.into_iter());
-        let op1  = self.test_multiplier(multipliers.next().unwrap())?;
+        let mut op1  = self.test_multiplier(multipliers.next().unwrap())?;
 
         for (multiplier, operation) in multipliers.zip(operations) {
             self.push_rax();
@@ -333,7 +333,10 @@ impl Semantic {
                 _ => match operation {
                     MultiplicationOperations::And => self.and(),
                     MultiplicationOperations::Multiplication => self.mul_i64(),
-                    MultiplicationOperations::Division => self.div_i64()
+                    MultiplicationOperations::Division => {
+                        self.div_i64();
+                        op1 = ProgramTypes::Float(None);
+                    }
                 }
             }
         }
@@ -547,8 +550,21 @@ impl Semantic {
     }
 
     fn div_i64(&mut self) {
-        self.asm.append(&mut vec![0x48, 0xf7, 0xfb]);
+        self.asm.append(&mut vec![0x9b, 0xdb, 0xe3]);
+        self.asm.append(&mut vec![0x48, 0x89, 0x04, 0x25, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
+        self.asm_idents.push((self.reserve, self.position - 4, false));
+        self.asm.append(&mut vec![0xdf, 0x2c, 0x25, 0x00, 0x00, 0x00, 0x00]);
+        self.cur_pos();
+        self.asm_idents.push((self.reserve, self.position - 4, false));
+        self.asm.append(&mut vec![0x48, 0x89, 0x1c, 0x25, 0x00, 0x00, 0x00, 0x00]);
+        self.cur_pos();
+        self.asm_idents.push((self.reserve, self.position - 4, false));
+        self.asm.append(&mut vec![0xdf, 0x2c, 0x25, 0x00, 0x00, 0x00, 0x00]);
+        self.cur_pos();
+        self.asm_idents.push((self.reserve, self.position - 4, false));
+        self.asm.append(&mut vec![0xde, 0xf9]);
+        self.save_fpu_rax();
     }
 
     fn mov_rax_ident(&mut self, id: u64) {
