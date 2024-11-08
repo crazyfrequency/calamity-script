@@ -203,7 +203,7 @@ impl Lexer {
                         digit_type = DigitType::Digital;
                     },
                 'B'|'b' => match self.next_char() {
-                    '0'..'9'|'a'..='f'|'A'..='F'|'.'|'h'|'H' =>
+                    '0'..='9'|'a'..='f'|'A'..='F'|'.'|'h'|'H' =>
                         if digit_type.clone() >> DigitType::Hex {
                             digit_type = DigitType::Hex;
                         } else {
@@ -218,7 +218,7 @@ impl Lexer {
                     }
                 },
                 'D'|'d' => match self.next_char() {
-                    '0'..'9'|'a'..='f'|'A'..='F'|'.'|'h'|'H' => 
+                    '0'..='9'|'a'..='f'|'A'..='F'|'.'|'h'|'H' => 
                         if digit_type.clone() >> DigitType::Hex {
                             digit_type = DigitType::Hex;
                         } else {
@@ -245,7 +245,7 @@ impl Lexer {
                         return self.variable_error("число с плавающей точкой");
                     },
                 'H'|'h' => match self.next_char() {
-                    '0'..'9'|'a'..='f'|'A'..='F'|'.'|'h'|'H' =>
+                    '0'..='9'|'a'..='f'|'A'..='F'|'.'|'h'|'H' =>
                         return self.variable_error("шестнадцатеричное число, так как обнаружен не поддерживаемый символ 'H' или 'h'"),
                     _ => if digit_type.clone() >> DigitType::Hex {
                         self.buffer.push(self.character);
@@ -268,7 +268,7 @@ impl Lexer {
                     return self.variable_error("число с плавающей точкой");
                 },
                 'O'|'o' => match self.next_char() {
-                    '0'..'9'|'a'..='f'|'A'..='F'|'.'|'h'|'H' => {
+                    '0'..='9'|'a'..='f'|'A'..='F'|'.'|'h'|'H' => {
                         return self.variable_error("восьмеричное число, так как дальше обнаружен не поддерживаемый символ");
                     },
                     _ => if digit_type.clone() >> DigitType::Octal {
