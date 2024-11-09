@@ -60,7 +60,7 @@ fn main() {
                 return;
             }
             _ => {
-                if i == last {
+                if i == last && !args[i].starts_with("-") {
                     path = args[i].clone();
                     break;
                 } else {
