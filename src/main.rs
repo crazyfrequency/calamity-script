@@ -70,6 +70,10 @@ fn main() {
             },
         }
     };
+    if error {
+        println!("Неверные аргументы, доступные аргументы можно увидеть введя: --help");
+        return;
+    }
     if path.is_empty() {
         println!("No file specified");
         return;
@@ -77,10 +81,6 @@ fn main() {
     }
     if out_path.is_empty() {
         out_path = path.clone() + ".o";
-    }
-    if error {
-        println!("Неверные аргументы, доступные аргументы можно увидеть введя: --help");
-        return;
     }
     let mut parser_structure = Parser::new(path);
     let res = parser_structure.run_lexer();
