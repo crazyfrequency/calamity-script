@@ -427,6 +427,9 @@ impl Semantic {
     }
 
     fn print(&mut self, p_type: ProgramTypes) {
+        if let ProgramTypes::Boolean(_) = p_type {
+            self.asm.append(&mut vec![0x48, 0x83, 0xe0, 0x01]);
+        }
         self.asm.append(&mut vec![0x48, 0xbf, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
         self.cur_pos();
         match p_type {
